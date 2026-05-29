@@ -1,12 +1,13 @@
 --[[
     Luxy Hub - main.lua
-    Modern iOS 26 inspired dark GUI for Roblox
+    Modern dark GUI for Roblox
     Features:
       - Floating, draggable window with smooth animations
-      - Minimize to a draggable floating icon (re-open with a tap)
+      - Minimize to a draggable floating icon (tap to reopen)
       - Speed toggle that reveals an animated slider (max 50)
-      - Live updates to LocalPlayer WalkSpeed
+      - Live WalkSpeed control for the LocalPlayer
 --]]
+
 
 -- Services
 local Players           = game:GetService("Players")
@@ -24,7 +25,7 @@ if CoreGui:FindFirstChild("LuxyHub") then
 end
 
 ------------------------------------------------------------
--- Theme (iOS 26 inspired dark)
+-- Theme (modern dark)
 ------------------------------------------------------------
 local Theme = {
     Background     = Color3.fromRGB(18, 18, 22),
@@ -33,7 +34,7 @@ local Theme = {
     Stroke         = Color3.fromRGB(55, 55, 62),
     Text           = Color3.fromRGB(240, 240, 245),
     SubText        = Color3.fromRGB(160, 160, 170),
-    Accent         = Color3.fromRGB(0, 122, 255),   -- iOS blue
+    Accent         = Color3.fromRGB(0, 122, 255),
     AccentSoft     = Color3.fromRGB(10, 90, 200),
     ToggleOff      = Color3.fromRGB(60, 60, 67),
     Danger         = Color3.fromRGB(255, 69, 58),
@@ -190,7 +191,7 @@ local Subtitle = new("TextLabel", {
     Position = UDim2.new(0, 18, 0, 22),
     Size = UDim2.new(1, -120, 0, 14),
     Font = Enum.Font.Gotham,
-    Text = "v1.0 • iOS Edition",
+    Text = "v1.0",
     TextColor3 = Theme.SubText,
     TextSize = 11,
     TextXAlignment = Enum.TextXAlignment.Left,
@@ -297,7 +298,7 @@ local Hint = new("TextLabel", {
     Parent = Row,
 })
 
--- iOS toggle switch
+-- Toggle switch
 local Switch = new("TextButton", {
     AnchorPoint = Vector2.new(1, 0.5),
     Position = UDim2.new(1, -14, 0.5, 0),
@@ -377,22 +378,48 @@ local MIN_SPEED     = 16
 local speedEnabled  = false
 local currentSpeed  = DEFAULT_SPEED
 
-local function getHumanoid()
-    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    return char:FindFirstChildOfClass("Humanoid")
-end
+local trackedHumanoid       = nil
+local humanoidConnection    = nil
 
-local function applySpeed()
-    local hum = getHumanoid()
-    if hum then
-        hum.WalkSpeed = speedEnabled and currentSpeed or DEFAULT_SPEED
+local function applySpeedTo(hum)
+    if not hum then return end
+    if speedEnabled then
+        hum.WalkSpeed = currentSpeed
+    else
+        hum.WalkSpeed = DEFAULT_SPEED
     end
 end
 
-LocalPlayer.CharacterAdded:Connect(function()
-    task.wait(0.5)
-    applySpeed()
-end)
+local function bindHumanoid(hum)
+    if not hum then return end
+    if humanoidConnection then
+        humanoidConnection:Disconnect()
+        humanoidConnection = nil
+    end
+    trackedHumanoid = hum
+    -- Re-apply whenever the game (or anything else) changes WalkSpeed
+    humanoidConnection = hum:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+        if speedEnabled and hum.WalkSpeed ~= currentSpeed then
+            hum.WalkSpeed = currentSpeed
+        end
+    end)
+    applySpeedTo(hum)
+end
+
+local function onCharacter(char)
+    local hum = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid", 5)
+    bindHumanoid(hum)
+end
+
+if LocalPlayer.Character then
+    onCharacter(LocalPlayer.Character)
+end
+LocalPlayer.CharacterAdded:Connect(onCharacter)
+
+local function applySpeed()
+    applySpeedTo(trackedHumanoid)
+end
+
 
 local function setSliderValue(value, animated)
     value = math.clamp(math.floor(value + 0.5), MIN_SPEED, MAX_SPEED)
