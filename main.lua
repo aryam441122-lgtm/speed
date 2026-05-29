@@ -1,11 +1,12 @@
 --[[
     Luxy Hub - main.lua
-    Modern dark GUI for Roblox
+    Modern deep dark GUI for Roblox
+
     Features:
       - Floating, draggable window with smooth animations
       - Minimize to a draggable floating icon (tap to reopen)
-      - Speed toggle that reveals an animated slider (max 50)
-      - Live WalkSpeed control for the LocalPlayer
+      - Speed control (locked — in development)
+      - Real Anti AFK with random in-place movement loop + manual Test
 --]]
 
 
@@ -17,7 +18,6 @@ local RunService        = game:GetService("RunService")
 local CoreGui           = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
-local Mouse       = LocalPlayer:GetMouse()
 
 -- Clean previous instance
 if CoreGui:FindFirstChild("LuxyHub") then
@@ -25,22 +25,30 @@ if CoreGui:FindFirstChild("LuxyHub") then
 end
 
 ------------------------------------------------------------
--- Theme (modern dark)
+-- Theme (deep dark)
 ------------------------------------------------------------
 local Theme = {
-    Background     = Color3.fromRGB(18, 18, 22),
-    Surface        = Color3.fromRGB(28, 28, 33),
-    SurfaceAlt     = Color3.fromRGB(38, 38, 44),
-    Stroke         = Color3.fromRGB(55, 55, 62),
-    Text           = Color3.fromRGB(240, 240, 245),
-    SubText        = Color3.fromRGB(160, 160, 170),
-    Accent         = Color3.fromRGB(0, 122, 255),
-    AccentSoft     = Color3.fromRGB(10, 90, 200),
-    ToggleOff      = Color3.fromRGB(60, 60, 67),
+    Background     = Color3.fromRGB(10, 10, 13),
+    BackgroundAlt  = Color3.fromRGB(14, 14, 18),
+    Surface        = Color3.fromRGB(20, 20, 26),
+    SurfaceAlt     = Color3.fromRGB(28, 28, 34),
+    SurfaceHigh    = Color3.fromRGB(34, 34, 40),
+    Stroke         = Color3.fromRGB(46, 46, 54),
+    StrokeSoft     = Color3.fromRGB(34, 34, 42),
+    Text           = Color3.fromRGB(245, 245, 250),
+    SubText        = Color3.fromRGB(150, 150, 162),
+    Muted          = Color3.fromRGB(96, 96, 108),
+    Accent         = Color3.fromRGB(88, 132, 255),
+    AccentSoft     = Color3.fromRGB(58, 96, 210),
+    AccentDeep     = Color3.fromRGB(40, 70, 170),
+    Success        = Color3.fromRGB(48, 209, 88),
+    Warning        = Color3.fromRGB(255, 159, 10),
     Danger         = Color3.fromRGB(255, 69, 58),
+    ToggleOff      = Color3.fromRGB(50, 50, 58),
+    Disabled       = Color3.fromRGB(70, 70, 80),
 }
 
-local QUICK = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local QUICK  = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local SPRING = TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local SMOOTH = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
@@ -49,12 +57,8 @@ local SMOOTH = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.
 ------------------------------------------------------------
 local function new(class, props, children)
     local inst = Instance.new(class)
-    for k, v in pairs(props or {}) do
-        inst[k] = v
-    end
-    for _, c in ipairs(children or {}) do
-        c.Parent = inst
-    end
+    for k, v in pairs(props or {}) do inst[k] = v end
+    for _, c in ipairs(children or {}) do c.Parent = inst end
     return inst
 end
 
@@ -71,21 +75,19 @@ local function stroke(parent, color, thickness)
     })
 end
 
-local function padding(parent, p)
+local function padding(parent, t, r, b, l)
+    r = r or t; b = b or t; l = l or t
     return new("UIPadding", {
-        PaddingTop = UDim.new(0, p), PaddingBottom = UDim.new(0, p),
-        PaddingLeft = UDim.new(0, p), PaddingRight = UDim.new(0, p),
+        PaddingTop = UDim.new(0, t), PaddingBottom = UDim.new(0, b),
+        PaddingLeft = UDim.new(0, l), PaddingRight = UDim.new(0, r),
         Parent = parent,
     })
 end
 
 local function tween(inst, info, props)
-    local t = TweenService:Create(inst, info, props)
-    t:Play()
-    return t
+    local t = TweenService:Create(inst, info, props); t:Play(); return t
 end
 
--- Universal drag (works for any GuiObject)
 local function makeDraggable(grabFrame, moveFrame)
     moveFrame = moveFrame or grabFrame
     local dragging, dragStart, startPos
@@ -96,9 +98,7 @@ local function makeDraggable(grabFrame, moveFrame)
             dragStart = input.Position
             startPos = moveFrame.Position
             input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
             end)
         end
     end)
@@ -128,415 +128,479 @@ local ScreenGui = new("ScreenGui", {
 ------------------------------------------------------------
 -- Main Window
 ------------------------------------------------------------
+local WIN_W, WIN_H = 460, 440
+
 local Window = new("Frame", {
     Name = "Window",
-    Size = UDim2.fromOffset(420, 320),
-    Position = UDim2.new(0.5, -210, 0.5, -160),
+    Size = UDim2.fromOffset(WIN_W, WIN_H),
+    Position = UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2),
     BackgroundColor3 = Theme.Background,
     BorderSizePixel = 0,
     Parent = ScreenGui,
 })
-corner(Window, 18)
+corner(Window, 20)
 stroke(Window, Theme.Stroke, 1)
 
--- Subtle glow
+-- Soft glow
 new("ImageLabel", {
     Name = "Glow",
     BackgroundTransparency = 1,
     Image = "rbxassetid://5028857084",
     ImageColor3 = Theme.Accent,
-    ImageTransparency = 0.85,
+    ImageTransparency = 0.86,
     ScaleType = Enum.ScaleType.Slice,
     SliceCenter = Rect.new(24, 24, 276, 276),
-    Size = UDim2.new(1, 40, 1, 40),
-    Position = UDim2.new(0, -20, 0, -20),
+    Size = UDim2.new(1, 48, 1, 48),
+    Position = UDim2.new(0, -24, 0, -24),
     ZIndex = 0,
     Parent = Window,
 })
 
--- Top bar
+------------------------------------------------------------
+-- Top Bar (taller, richer)
+------------------------------------------------------------
 local TopBar = new("Frame", {
     Name = "TopBar",
-    Size = UDim2.new(1, 0, 0, 44),
-    BackgroundColor3 = Theme.Surface,
+    Size = UDim2.new(1, 0, 0, 64),
+    BackgroundColor3 = Theme.BackgroundAlt,
     BorderSizePixel = 0,
     Parent = Window,
 })
-corner(TopBar, 18)
+corner(TopBar, 20)
 
--- Mask bottom corners of topbar
+-- mask bottom corners
 new("Frame", {
-    Size = UDim2.new(1, 0, 0, 18),
-    Position = UDim2.new(0, 0, 1, -18),
-    BackgroundColor3 = Theme.Surface,
+    Size = UDim2.new(1, 0, 0, 22),
+    Position = UDim2.new(0, 0, 1, -22),
+    BackgroundColor3 = Theme.BackgroundAlt,
     BorderSizePixel = 0,
     Parent = TopBar,
+})
+
+-- bottom hairline
+new("Frame", {
+    Size = UDim2.new(1, 0, 0, 1),
+    Position = UDim2.new(0, 0, 1, 0),
+    BackgroundColor3 = Theme.StrokeSoft,
+    BorderSizePixel = 0,
+    Parent = TopBar,
+})
+
+-- Brand badge (logo square)
+local Brand = new("Frame", {
+    Size = UDim2.fromOffset(36, 36),
+    Position = UDim2.new(0, 16, 0.5, -18),
+    BackgroundColor3 = Theme.Accent,
+    BorderSizePixel = 0,
+    Parent = TopBar,
+})
+corner(Brand, 10)
+new("TextLabel", {
+    BackgroundTransparency = 1,
+    Size = UDim2.new(1, 0, 1, 0),
+    Font = Enum.Font.GothamBold,
+    Text = "L",
+    TextColor3 = Color3.fromRGB(255,255,255),
+    TextSize = 18,
+    Parent = Brand,
 })
 
 local Title = new("TextLabel", {
     Name = "Title",
     BackgroundTransparency = 1,
-    Position = UDim2.new(0, 18, 0, 0),
-    Size = UDim2.new(1, -120, 1, 0),
+    Position = UDim2.new(0, 62, 0, 12),
+    Size = UDim2.new(1, -200, 0, 20),
     Font = Enum.Font.GothamBold,
     Text = "Luxy Hub",
     TextColor3 = Theme.Text,
-    TextSize = 16,
+    TextSize = 18,
     TextXAlignment = Enum.TextXAlignment.Left,
     Parent = TopBar,
 })
 
 local Subtitle = new("TextLabel", {
     BackgroundTransparency = 1,
-    Position = UDim2.new(0, 18, 0, 22),
-    Size = UDim2.new(1, -120, 0, 14),
+    Position = UDim2.new(0, 62, 0, 32),
+    Size = UDim2.new(1, -200, 0, 16),
     Font = Enum.Font.Gotham,
-    Text = "v1.0",
+    Text = "Premium Roblox Utility",
     TextColor3 = Theme.SubText,
     TextSize = 11,
     TextXAlignment = Enum.TextXAlignment.Left,
     Parent = TopBar,
 })
 
--- Window control buttons (minimize / close)
-local function makeCircleBtn(color, posX)
+-- Version pill
+local VersionPill = new("Frame", {
+    AnchorPoint = Vector2.new(1, 0.5),
+    Position = UDim2.new(1, -96, 0.5, 0),
+    Size = UDim2.fromOffset(70, 24),
+    BackgroundColor3 = Theme.SurfaceAlt,
+    BorderSizePixel = 0,
+    Parent = TopBar,
+})
+corner(VersionPill, 12)
+stroke(VersionPill, Theme.Stroke, 1)
+new("Frame", {
+    AnchorPoint = Vector2.new(0, 0.5),
+    Position = UDim2.new(0, 8, 0.5, 0),
+    Size = UDim2.fromOffset(6, 6),
+    BackgroundColor3 = Theme.Success,
+    BorderSizePixel = 0,
+    Parent = VersionPill,
+}, {}).Parent = VersionPill
+local vDot = VersionPill:FindFirstChildOfClass("Frame")
+if vDot then corner(vDot, 3) end
+new("TextLabel", {
+    BackgroundTransparency = 1,
+    Position = UDim2.new(0, 20, 0, 0),
+    Size = UDim2.new(1, -22, 1, 0),
+    Font = Enum.Font.GothamMedium,
+    Text = "v1.1",
+    TextColor3 = Theme.Text,
+    TextSize = 11,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    Parent = VersionPill,
+})
+
+-- Window control buttons
+local function makeCircleBtn(color, posX, glyph)
     local b = new("TextButton", {
-        Size = UDim2.fromOffset(26, 26),
-        Position = UDim2.new(1, posX, 0.5, -13),
+        Size = UDim2.fromOffset(22, 22),
+        Position = UDim2.new(1, posX, 0.5, -11),
         BackgroundColor3 = color,
         AutoButtonColor = false,
-        Text = "",
+        Text = glyph or "",
+        Font = Enum.Font.GothamBold,
+        TextSize = 12,
+        TextColor3 = Color3.fromRGB(0,0,0),
+        TextTransparency = 0.4,
         Parent = TopBar,
     })
-    corner(b, 13)
+    corner(b, 11)
     return b
 end
 
-local CloseBtn    = makeCircleBtn(Theme.Danger, -36)
-local MinimizeBtn = makeCircleBtn(Color3.fromRGB(255, 159, 10), -70)
+local CloseBtn    = makeCircleBtn(Theme.Danger, -28, "")
+local MinimizeBtn = makeCircleBtn(Theme.Warning, -56, "")
 
--- Content area
-local Content = new("Frame", {
+------------------------------------------------------------
+-- Content
+------------------------------------------------------------
+local Content = new("ScrollingFrame", {
     Name = "Content",
     BackgroundTransparency = 1,
-    Position = UDim2.new(0, 0, 0, 44),
-    Size = UDim2.new(1, 0, 1, -44),
+    BorderSizePixel = 0,
+    Position = UDim2.new(0, 0, 0, 64),
+    Size = UDim2.new(1, 0, 1, -92),
+    CanvasSize = UDim2.new(0, 0, 0, 0),
+    AutomaticCanvasSize = Enum.AutomaticSize.Y,
+    ScrollBarThickness = 3,
+    ScrollBarImageColor3 = Theme.Stroke,
     Parent = Window,
 })
-padding(Content, 16)
+padding(Content, 18)
 
 local List = new("Frame", {
     BackgroundTransparency = 1,
-    Size = UDim2.new(1, 0, 1, 0),
+    Size = UDim2.new(1, 0, 0, 0),
+    AutomaticSize = Enum.AutomaticSize.Y,
     Parent = Content,
 })
 new("UIListLayout", {
-    Padding = UDim.new(0, 12),
+    Padding = UDim.new(0, 14),
     SortOrder = Enum.SortOrder.LayoutOrder,
     Parent = List,
 })
 
+local function sectionLabel(text, order)
+    return new("TextLabel", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 16),
+        Font = Enum.Font.GothamBold,
+        Text = text,
+        TextColor3 = Theme.Muted,
+        TextSize = 10,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        LayoutOrder = order,
+        Parent = List,
+    })
+end
+
 ------------------------------------------------------------
--- Section: Movement
+-- Generic Feature Card builder
 ------------------------------------------------------------
-local SectionLabel = new("TextLabel", {
+-- Returns { card, switch, knob, body, setEnabled(state, animated) }
+local function makeFeatureCard(opts)
+    local card = new("Frame", {
+        Name = opts.name or "Card",
+        BackgroundColor3 = Theme.Surface,
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, 78),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        LayoutOrder = opts.order or 1,
+        Parent = List,
+    })
+    corner(card, 14)
+    stroke(card, Theme.StrokeSoft, 1)
+
+    local header = new("Frame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 78),
+        Parent = card,
+    })
+
+    new("TextLabel", {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 16, 0, 14),
+        Size = UDim2.new(1, -96, 0, 20),
+        Font = Enum.Font.GothamBold,
+        Text = opts.title,
+        TextColor3 = Theme.Text,
+        TextSize = 14,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = header,
+    })
+
+    new("TextLabel", {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 16, 0, 36),
+        Size = UDim2.new(1, -32, 0, 32),
+        Font = Enum.Font.Gotham,
+        Text = opts.description,
+        TextColor3 = Theme.SubText,
+        TextSize = 11,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        TextWrapped = true,
+        Parent = header,
+    })
+
+    -- Status badge (top-right, above switch)
+    local badge
+    if opts.badge then
+        badge = new("Frame", {
+            AnchorPoint = Vector2.new(1, 0),
+            Position = UDim2.new(1, -14, 0, 12),
+            Size = UDim2.fromOffset(110, 18),
+            BackgroundColor3 = opts.badgeColor or Theme.SurfaceHigh,
+            BorderSizePixel = 0,
+            Parent = header,
+        })
+        corner(badge, 9)
+        new("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 1, 0),
+            Font = Enum.Font.GothamBold,
+            Text = opts.badge,
+            TextColor3 = opts.badgeTextColor or Theme.Warning,
+            TextSize = 9,
+            Parent = badge,
+        })
+    end
+
+    local switch, knob
+    if not opts.noSwitch then
+        switch = new("TextButton", {
+            AnchorPoint = Vector2.new(1, 0),
+            Position = UDim2.new(1, -14, 0, badge and 36 or 14),
+            Size = UDim2.fromOffset(46, 26),
+            BackgroundColor3 = opts.disabled and Theme.Disabled or Theme.ToggleOff,
+            AutoButtonColor = false,
+            Text = "",
+            Active = not opts.disabled,
+            Parent = header,
+        })
+        corner(switch, 13)
+        knob = new("Frame", {
+            Size = UDim2.fromOffset(22, 22),
+            Position = UDim2.fromOffset(2, 2),
+            BackgroundColor3 = Color3.fromRGB(220,220,225),
+            BorderSizePixel = 0,
+            Parent = switch,
+        })
+        corner(knob, 11)
+    end
+
+    return card, header, switch, knob
+end
+
+------------------------------------------------------------
+-- MOVEMENT SECTION
+------------------------------------------------------------
+sectionLabel("MOVEMENT", 1)
+
+-- Speed card (LOCKED — In Development)
+local speedCard, speedHeader, speedSwitch, speedKnob = makeFeatureCard({
+    name        = "SpeedCard",
+    title       = "Speed",
+    description = "Boost your walk speed in-game. Currently unavailable while we polish stability.",
+    badge       = "IN DEVELOPMENT",
+    badgeColor  = Color3.fromRGB(60, 45, 20),
+    badgeTextColor = Theme.Warning,
+    disabled    = true,
+    order       = 2,
+})
+
+-- Disabled-look slider (visible but not interactive)
+local sliderArea = new("Frame", {
     BackgroundTransparency = 1,
-    Size = UDim2.new(1, 0, 0, 18),
-    Font = Enum.Font.GothamMedium,
-    Text = "MOVEMENT",
+    Position = UDim2.new(0, 0, 0, 78),
+    Size = UDim2.new(1, 0, 0, 44),
+    Parent = speedCard,
+})
+local sliderTrack = new("Frame", {
+    AnchorPoint = Vector2.new(0, 0.5),
+    Position = UDim2.new(0, 16, 0, 22),
+    Size = UDim2.new(1, -76, 0, 6),
+    BackgroundColor3 = Theme.SurfaceAlt,
+    BorderSizePixel = 0,
+    Parent = sliderArea,
+})
+corner(sliderTrack, 3)
+local sliderFill = new("Frame", {
+    Size = UDim2.new(0.35, 0, 1, 0),
+    BackgroundColor3 = Theme.Disabled,
+    BorderSizePixel = 0,
+    Parent = sliderTrack,
+})
+corner(sliderFill, 3)
+local sliderKnob = new("Frame", {
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    Position = UDim2.new(0.35, 0, 0.5, 0),
+    Size = UDim2.fromOffset(16, 16),
+    BackgroundColor3 = Color3.fromRGB(140,140,148),
+    BorderSizePixel = 0,
+    ZIndex = 2,
+    Parent = sliderTrack,
+})
+corner(sliderKnob, 8)
+new("TextLabel", {
+    BackgroundTransparency = 1,
+    AnchorPoint = Vector2.new(1, 0.5),
+    Position = UDim2.new(1, -16, 0, 22),
+    Size = UDim2.fromOffset(44, 18),
+    Font = Enum.Font.GothamBold,
+    Text = "—",
+    TextColor3 = Theme.Muted,
+    TextSize = 12,
+    TextXAlignment = Enum.TextXAlignment.Right,
+    Parent = sliderArea,
+})
+speedCard.Size = UDim2.new(1, 0, 0, 78 + 44 + 8)
+
+-- Click-on-disabled feedback
+speedSwitch.MouseButton1Click:Connect(function()
+    tween(speedSwitch, QUICK, { BackgroundColor3 = Color3.fromRGB(90, 70, 30) })
+    task.delay(0.2, function()
+        tween(speedSwitch, QUICK, { BackgroundColor3 = Theme.Disabled })
+    end)
+end)
+
+------------------------------------------------------------
+-- AUTOMATION SECTION
+------------------------------------------------------------
+sectionLabel("AUTOMATION", 3)
+
+local afkCard, afkHeader, afkSwitch, afkKnob = makeFeatureCard({
+    name        = "AntiAfkCard",
+    title       = "Real Anti AFK",
+    description = "Watches your character. If you haven't moved for 17 minutes, it automatically walks 5 steps in a circle, jumps twice, and returns to your spot.",
+    order       = 4,
+})
+
+-- Test button row inside the card
+local afkExtras = new("Frame", {
+    BackgroundTransparency = 1,
+    Position = UDim2.new(0, 0, 0, 78),
+    Size = UDim2.new(1, 0, 0, 52),
+    Parent = afkCard,
+})
+
+local TestBtn = new("TextButton", {
+    Position = UDim2.new(0, 16, 0, 8),
+    Size = UDim2.new(0, 110, 0, 32),
+    BackgroundColor3 = Theme.SurfaceHigh,
+    AutoButtonColor = false,
+    Text = "▶  Run Test",
+    Font = Enum.Font.GothamBold,
+    TextSize = 12,
+    TextColor3 = Theme.Text,
+    Parent = afkExtras,
+})
+corner(TestBtn, 10)
+stroke(TestBtn, Theme.Stroke, 1)
+
+local StatusLabel = new("TextLabel", {
+    BackgroundTransparency = 1,
+    Position = UDim2.new(0, 138, 0, 8),
+    Size = UDim2.new(1, -156, 0, 32),
+    Font = Enum.Font.Gotham,
+    Text = "Idle",
     TextColor3 = Theme.SubText,
     TextSize = 11,
     TextXAlignment = Enum.TextXAlignment.Left,
-    LayoutOrder = 1,
-    Parent = List,
+    Parent = afkExtras,
 })
 
+afkCard.Size = UDim2.new(1, 0, 0, 78 + 52 + 8)
+
 ------------------------------------------------------------
--- Toggle Card (Speed)  -- collapsible card containing slider
+-- Footer (credits)
 ------------------------------------------------------------
-local SpeedCard = new("Frame", {
-    Name = "SpeedCard",
-    BackgroundColor3 = Theme.Surface,
+local Footer = new("Frame", {
+    Name = "Footer",
+    Size = UDim2.new(1, 0, 0, 28),
+    Position = UDim2.new(0, 0, 1, -28),
+    BackgroundColor3 = Theme.BackgroundAlt,
     BorderSizePixel = 0,
-    Size = UDim2.new(1, 0, 0, 56),
-    ClipsDescendants = true,
-    LayoutOrder = 2,
-    Parent = List,
+    Parent = Window,
 })
-corner(SpeedCard, 14)
-stroke(SpeedCard, Theme.Stroke, 1)
-
-local Row = new("Frame", {
-    BackgroundTransparency = 1,
-    Size = UDim2.new(1, 0, 0, 56),
-    Parent = SpeedCard,
+new("Frame", {
+    Size = UDim2.new(1, 0, 0, 1),
+    BackgroundColor3 = Theme.StrokeSoft,
+    BorderSizePixel = 0,
+    Parent = Footer,
 })
-
+-- mask top corners only matter at bottom; we keep simple
 new("TextLabel", {
     BackgroundTransparency = 1,
     Position = UDim2.new(0, 16, 0, 0),
-    Size = UDim2.new(1, -90, 0, 30),
-    AnchorPoint = Vector2.new(0, 0),
+    Size = UDim2.new(0.5, -16, 1, 0),
     Font = Enum.Font.GothamMedium,
-    Text = "Speed",
+    Text = "Luxy Hub",
     TextColor3 = Theme.Text,
-    TextSize = 14,
-    TextXAlignment = Enum.TextXAlignment.Left,
-    Position = UDim2.new(0, 16, 0, 10),
-    Parent = Row,
-})
-
-local Hint = new("TextLabel", {
-    BackgroundTransparency = 1,
-    Position = UDim2.new(0, 16, 0, 30),
-    Size = UDim2.new(1, -90, 0, 16),
-    Font = Enum.Font.Gotham,
-    Text = "Boost your walk speed",
-    TextColor3 = Theme.SubText,
     TextSize = 11,
     TextXAlignment = Enum.TextXAlignment.Left,
-    Parent = Row,
+    Parent = Footer,
 })
-
--- Toggle switch
-local Switch = new("TextButton", {
-    AnchorPoint = Vector2.new(1, 0.5),
-    Position = UDim2.new(1, -14, 0.5, 0),
-    Size = UDim2.fromOffset(48, 28),
-    BackgroundColor3 = Theme.ToggleOff,
-    AutoButtonColor = false,
-    Text = "",
-    Parent = Row,
-})
-corner(Switch, 14)
-
-local Knob = new("Frame", {
-    Size = UDim2.fromOffset(24, 24),
-    Position = UDim2.fromOffset(2, 2),
-    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-    BorderSizePixel = 0,
-    Parent = Switch,
-})
-corner(Knob, 12)
-
--- Slider area (hidden initially)
-local SliderArea = new("Frame", {
-    BackgroundTransparency = 1,
-    Position = UDim2.new(0, 0, 0, 56),
-    Size = UDim2.new(1, 0, 0, 50),
-    Parent = SpeedCard,
-})
-
-local ValueLabel = new("TextLabel", {
-    BackgroundTransparency = 1,
-    Position = UDim2.new(1, -56, 0, 4),
-    Size = UDim2.fromOffset(40, 18),
-    Font = Enum.Font.GothamBold,
-    Text = "16",
-    TextColor3 = Theme.Text,
-    TextSize = 12,
-    TextXAlignment = Enum.TextXAlignment.Right,
-    Parent = SliderArea,
-})
-
-local SliderTrack = new("Frame", {
-    AnchorPoint = Vector2.new(0, 0.5),
-    Position = UDim2.new(0, 16, 0, 30),
-    Size = UDim2.new(1, -32, 0, 6),
-    BackgroundColor3 = Theme.SurfaceAlt,
-    BorderSizePixel = 0,
-    Parent = SliderArea,
-})
-corner(SliderTrack, 3)
-
-local SliderFill = new("Frame", {
-    Size = UDim2.new(0, 0, 1, 0),
-    BackgroundColor3 = Theme.Accent,
-    BorderSizePixel = 0,
-    Parent = SliderTrack,
-})
-corner(SliderFill, 3)
-
-local SliderKnob = new("Frame", {
-    AnchorPoint = Vector2.new(0.5, 0.5),
-    Position = UDim2.new(0, 0, 0.5, 0),
-    Size = UDim2.fromOffset(18, 18),
-    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-    BorderSizePixel = 0,
-    ZIndex = 2,
-    Parent = SliderTrack,
-})
-corner(SliderKnob, 9)
-
-------------------------------------------------------------
--- Speed State
-------------------------------------------------------------
-local DEFAULT_SPEED = 16
-local MAX_SPEED     = 50
-local MIN_SPEED     = 16
-
-local speedEnabled  = false
-local currentSpeed  = DEFAULT_SPEED
-
-local trackedHumanoid    = nil
-local humanoidConnection = nil
-local diedConnection     = nil
-local applying           = false   -- reentrancy guard
-local lastApply          = 0
-
-local function applySpeedTo(hum)
-    if not hum or applying then return end
-    local target = speedEnabled and currentSpeed or DEFAULT_SPEED
-    if hum.WalkSpeed == target then return end
-    applying = true
-    pcall(function()
-        hum.WalkSpeed = target
-    end)
-    applying = false
-end
-
-local function bindHumanoid(hum)
-    if not hum then return end
-    if humanoidConnection then humanoidConnection:Disconnect() end
-    if diedConnection then diedConnection:Disconnect() end
-    trackedHumanoid = hum
-
-    -- Re-apply when something else changes WalkSpeed (throttled, guarded)
-    humanoidConnection = hum:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
-        if not speedEnabled or applying then return end
-        local now = tick()
-        if now - lastApply < 0.1 then return end
-        lastApply = now
-        if hum.WalkSpeed ~= currentSpeed then
-            applySpeedTo(hum)
-        end
-    end)
-
-    diedConnection = hum.Died:Connect(function()
-        if humanoidConnection then humanoidConnection:Disconnect() humanoidConnection = nil end
-    end)
-
-    applySpeedTo(hum)
-end
-
-local function onCharacter(char)
-    task.spawn(function()
-        local hum = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid", 5)
-        if hum then bindHumanoid(hum) end
-    end)
-end
-
-if LocalPlayer.Character then
-    onCharacter(LocalPlayer.Character)
-end
-LocalPlayer.CharacterAdded:Connect(onCharacter)
-
-local function applySpeed()
-    applySpeedTo(trackedHumanoid)
-end
-
-
-
-local function setSliderValue(value, animated)
-    value = math.clamp(math.floor(value + 0.5), MIN_SPEED, MAX_SPEED)
-    currentSpeed = value
-    ValueLabel.Text = tostring(value)
-    local alpha = (value - MIN_SPEED) / (MAX_SPEED - MIN_SPEED)
-    local info = animated and QUICK or TweenInfo.new(0)
-    tween(SliderFill, info, { Size = UDim2.new(alpha, 0, 1, 0) })
-    tween(SliderKnob, info, { Position = UDim2.new(alpha, 0, 0.5, 0) })
-    if speedEnabled then applySpeed() end
-end
-
-setSliderValue(DEFAULT_SPEED, false)
-
--- Slider drag
-local sliderDragging = false
-local function updateSliderFromInput(input)
-    local rel = (input.Position.X - SliderTrack.AbsolutePosition.X) / SliderTrack.AbsoluteSize.X
-    rel = math.clamp(rel, 0, 1)
-    setSliderValue(MIN_SPEED + rel * (MAX_SPEED - MIN_SPEED), true)
-end
-
-SliderTrack.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-    or input.UserInputType == Enum.UserInputType.Touch then
-        sliderDragging = true
-        updateSliderFromInput(input)
-    end
-end)
-SliderKnob.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-    or input.UserInputType == Enum.UserInputType.Touch then
-        sliderDragging = true
-    end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if sliderDragging and (input.UserInputType == Enum.UserInputType.MouseMovement
-        or input.UserInputType == Enum.UserInputType.Touch) then
-        updateSliderFromInput(input)
-    end
-end)
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-    or input.UserInputType == Enum.UserInputType.Touch then
-        sliderDragging = false
-    end
-end)
-
-------------------------------------------------------------
--- Toggle behavior (expand/collapse card)
-------------------------------------------------------------
-local COLLAPSED_H = 56
-local EXPANDED_H  = 56 + 50
-
-local function setSpeedEnabled(state)
-    speedEnabled = state
-    if state then
-        tween(Switch, QUICK, { BackgroundColor3 = Theme.Accent })
-        tween(Knob, SPRING, { Position = UDim2.fromOffset(22, 2) })
-        tween(SpeedCard, SMOOTH, { Size = UDim2.new(1, 0, 0, EXPANDED_H) })
-    else
-        tween(Switch, QUICK, { BackgroundColor3 = Theme.ToggleOff })
-        tween(Knob, SPRING, { Position = UDim2.fromOffset(2, 2) })
-        tween(SpeedCard, SMOOTH, { Size = UDim2.new(1, 0, 0, COLLAPSED_H) })
-    end
-    applySpeed()
-end
-
-Switch.MouseButton1Click:Connect(function()
-    setSpeedEnabled(not speedEnabled)
-end)
-
-------------------------------------------------------------
--- Footer credit
-------------------------------------------------------------
 new("TextLabel", {
     BackgroundTransparency = 1,
-    AnchorPoint = Vector2.new(0.5, 1),
-    Position = UDim2.new(0.5, 0, 1, -8),
-    Size = UDim2.new(1, -32, 0, 14),
+    AnchorPoint = Vector2.new(1, 0),
+    Position = UDim2.new(1, -16, 0, 0),
+    Size = UDim2.new(0.5, -16, 1, 0),
     Font = Enum.Font.Gotham,
-    Text = "Luxy Hub • Crafted with care",
+    Text = "© 2025 • Crafted by Luxy",
     TextColor3 = Theme.SubText,
-    TextSize = 10,
-    Parent = Window,
+    TextSize = 11,
+    TextXAlignment = Enum.TextXAlignment.Right,
+    Parent = Footer,
 })
 
 ------------------------------------------------------------
--- Floating Icon (shown when minimized)
+-- Floating Icon (minimized state)
 ------------------------------------------------------------
 local FloatIcon = new("ImageButton", {
     Name = "FloatIcon",
-    Size = UDim2.fromOffset(52, 52),
-    Position = UDim2.new(0, 24, 0.5, -26),
+    Size = UDim2.fromOffset(54, 54),
+    Position = UDim2.new(0, 24, 0.5, -27),
     BackgroundColor3 = Theme.Surface,
     AutoButtonColor = false,
     Visible = false,
     Image = "",
     Parent = ScreenGui,
 })
-corner(FloatIcon, 26)
+corner(FloatIcon, 27)
 stroke(FloatIcon, Theme.Stroke, 1)
 
 new("TextLabel", {
@@ -549,7 +613,6 @@ new("TextLabel", {
     Parent = FloatIcon,
 })
 
--- Subtle pulsing ring
 local Ring = new("Frame", {
     AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.new(0.5, 0, 0.5, 0),
@@ -557,7 +620,7 @@ local Ring = new("Frame", {
     BackgroundTransparency = 1,
     Parent = FloatIcon,
 })
-corner(Ring, 26)
+corner(Ring, 27)
 local ringStroke = stroke(Ring, Theme.Accent, 2)
 ringStroke.Transparency = 0.4
 
@@ -580,9 +643,8 @@ local function setWindowVisible(visible)
         Window.Visible = true
         Window.Size = UDim2.fromOffset(0, 0)
         Window.BackgroundTransparency = 1
-        local targetSize = UDim2.fromOffset(420, 320)
         tween(Window, TweenInfo.new(0.32, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-            { Size = targetSize, BackgroundTransparency = 0 })
+            { Size = UDim2.fromOffset(WIN_W, WIN_H), BackgroundTransparency = 0 })
         FloatIcon.Visible = false
     else
         tween(Window, SMOOTH, { Size = UDim2.fromOffset(0, 0), BackgroundTransparency = 1 })
@@ -591,23 +653,17 @@ local function setWindowVisible(visible)
             FloatIcon.Visible = true
             FloatIcon.Size = UDim2.fromOffset(0, 0)
             tween(FloatIcon, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-                { Size = UDim2.fromOffset(52, 52) })
+                { Size = UDim2.fromOffset(54, 54) })
         end)
     end
 end
 
-MinimizeBtn.MouseButton1Click:Connect(function()
-    setWindowVisible(false)
-end)
-
+MinimizeBtn.MouseButton1Click:Connect(function() setWindowVisible(false) end)
 CloseBtn.MouseButton1Click:Connect(function()
     tween(Window, SMOOTH, { Size = UDim2.fromOffset(0, 0), BackgroundTransparency = 1 })
-    task.delay(0.25, function()
-        ScreenGui:Destroy()
-    end)
+    task.delay(0.25, function() ScreenGui:Destroy() end)
 end)
 
--- Tap on icon to restore (but not when dragged)
 local iconPressStart
 FloatIcon.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1
@@ -620,18 +676,156 @@ FloatIcon.InputEnded:Connect(function(input)
         or input.UserInputType == Enum.UserInputType.Touch) then
         local dt = tick() - iconPressStart.time
         local delta = (input.Position - iconPressStart.pos).Magnitude
-        if dt < 0.3 and delta < 6 then
-            setWindowVisible(true)
-        end
+        if dt < 0.3 and delta < 6 then setWindowVisible(true) end
         iconPressStart = nil
     end
 end)
 
-------------------------------------------------------------
--- Dragging
-------------------------------------------------------------
 makeDraggable(TopBar, Window)
 makeDraggable(FloatIcon, FloatIcon)
+
+------------------------------------------------------------
+-- Anti-AFK logic
+------------------------------------------------------------
+local IDLE_THRESHOLD = 17 * 60   -- 17 minutes
+local MOVE_EPSILON   = 3          -- studs considered "still"
+
+local antiAfkEnabled = false
+local isPerforming   = false      -- true while routine (auto or test) is running
+local suppressMonitor = false     -- when true, position changes during routine are ignored
+local lastMoveTick   = tick()
+local lastPos        = nil
+
+local function getCharacter()
+    local char = LocalPlayer.Character
+    if not char then return nil end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if hum and hrp and hum.Health > 0 then return char, hum, hrp end
+    return nil
+end
+
+local function setStatus(text, color)
+    StatusLabel.Text = text
+    StatusLabel.TextColor3 = color or Theme.SubText
+end
+
+-- The actual routine: 5 steps in a circle, 2 jumps, return to start
+local function performRoutine(isTest)
+    local char, hum, hrp = getCharacter()
+    if not hum or not hrp then
+        setStatus("No character", Theme.Danger)
+        return
+    end
+    if isPerforming then return end
+    isPerforming    = true
+    suppressMonitor = true
+    setStatus(isTest and "Testing…" or "Auto-moving…", Theme.Accent)
+
+    local startCFrame = hrp.CFrame
+    local startPos    = hrp.Position
+    local radius      = 4
+
+    -- 5 steps around a circle
+    for i = 1, 5 do
+        if not getCharacter() then break end
+        local angle = (i / 5) * math.pi * 2
+        local offset = Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
+        local target = startPos + offset
+        hum:MoveTo(target)
+        hum.MoveToFinished:Wait()
+        task.wait(0.1)
+    end
+
+    -- Return to start
+    do
+        local _, h2, r2 = getCharacter()
+        if h2 and r2 then
+            h2:MoveTo(startPos)
+            h2.MoveToFinished:Wait()
+        end
+    end
+
+    -- Two jumps
+    for _ = 1, 2 do
+        local _, h3 = getCharacter()
+        if not h3 then break end
+        h3.Jump = true
+        task.wait(0.55)
+    end
+
+    -- Restore facing
+    do
+        local _, _, r4 = getCharacter()
+        if r4 then
+            pcall(function() r4.CFrame = startCFrame end)
+        end
+    end
+
+    task.wait(0.2)
+    suppressMonitor = false
+    isPerforming    = false
+    lastMoveTick    = tick()
+    local _, _, hrpEnd = getCharacter()
+    if hrpEnd then lastPos = hrpEnd.Position end
+
+    if antiAfkEnabled then
+        setStatus("Monitoring…", Theme.Success)
+    else
+        setStatus("Idle", Theme.SubText)
+    end
+end
+
+-- Monitor loop (single, throttled)
+task.spawn(function()
+    while ScreenGui.Parent do
+        task.wait(1)
+        if antiAfkEnabled and not suppressMonitor and not isPerforming then
+            local _, _, hrp = getCharacter()
+            if hrp then
+                if lastPos == nil then
+                    lastPos = hrp.Position
+                    lastMoveTick = tick()
+                else
+                    if (hrp.Position - lastPos).Magnitude > MOVE_EPSILON then
+                        lastPos = hrp.Position
+                        lastMoveTick = tick()
+                    elseif tick() - lastMoveTick >= IDLE_THRESHOLD then
+                        task.spawn(function() performRoutine(false) end)
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- Toggle switch behavior
+local function setAntiAfk(state)
+    antiAfkEnabled = state
+    if state then
+        tween(afkSwitch, QUICK, { BackgroundColor3 = Theme.Accent })
+        tween(afkKnob, SPRING, { Position = UDim2.fromOffset(22, 2) })
+        lastMoveTick = tick()
+        local _, _, hrp = getCharacter()
+        lastPos = hrp and hrp.Position or nil
+        if not isPerforming then setStatus("Monitoring…", Theme.Success) end
+    else
+        tween(afkSwitch, QUICK, { BackgroundColor3 = Theme.ToggleOff })
+        tween(afkKnob, SPRING, { Position = UDim2.fromOffset(2, 2) })
+        if not isPerforming then setStatus("Idle", Theme.SubText) end
+    end
+end
+
+afkSwitch.MouseButton1Click:Connect(function()
+    setAntiAfk(not antiAfkEnabled)
+end)
+
+TestBtn.MouseButton1Click:Connect(function()
+    if isPerforming then return end
+    tween(TestBtn, QUICK, { BackgroundColor3 = Theme.AccentDeep })
+    task.delay(0.15, function() tween(TestBtn, QUICK, { BackgroundColor3 = Theme.SurfaceHigh }) end)
+    task.spawn(function() performRoutine(true) end)
+end)
 
 ------------------------------------------------------------
 -- Intro animation
@@ -639,7 +833,4 @@ makeDraggable(FloatIcon, FloatIcon)
 Window.Size = UDim2.fromOffset(0, 0)
 Window.BackgroundTransparency = 1
 tween(Window, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-    { Size = UDim2.fromOffset(420, 320), BackgroundTransparency = 0 })
-
-
-
+    { Size = UDim2.fromOffset(WIN_W, WIN_H), BackgroundTransparency = 0 })
