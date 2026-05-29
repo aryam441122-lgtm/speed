@@ -128,7 +128,7 @@ local ScreenGui = new("ScreenGui", {
 ------------------------------------------------------------
 -- Main Window
 ------------------------------------------------------------
-local WIN_W, WIN_H = 460, 440
+local WIN_W, WIN_H = 580, 460
 
 local Window = new("Frame", {
     Name = "Window",
@@ -138,7 +138,7 @@ local Window = new("Frame", {
     BorderSizePixel = 0,
     Parent = ScreenGui,
 })
-corner(Window, 20)
+corner(Window, 26)
 stroke(Window, Theme.Stroke, 1)
 
 -- Soft glow
@@ -166,12 +166,12 @@ local TopBar = new("Frame", {
     BorderSizePixel = 0,
     Parent = Window,
 })
-corner(TopBar, 20)
+corner(TopBar, 26)
 
 -- mask bottom corners
 new("Frame", {
-    Size = UDim2.new(1, 0, 0, 22),
-    Position = UDim2.new(0, 0, 1, -22),
+    Size = UDim2.new(1, 0, 0, 28),
+    Position = UDim2.new(0, 0, 1, -28),
     BackgroundColor3 = Theme.BackgroundAlt,
     BorderSizePixel = 0,
     Parent = TopBar,
@@ -194,7 +194,7 @@ local Brand = new("Frame", {
     BorderSizePixel = 0,
     Parent = TopBar,
 })
-corner(Brand, 10)
+corner(Brand, 14)
 new("TextLabel", {
     BackgroundTransparency = 1,
     Size = UDim2.new(1, 0, 1, 0),
@@ -239,7 +239,7 @@ local VersionPill = new("Frame", {
     BorderSizePixel = 0,
     Parent = TopBar,
 })
-corner(VersionPill, 12)
+corner(VersionPill, 14)
 stroke(VersionPill, Theme.Stroke, 1)
 new("Frame", {
     AnchorPoint = Vector2.new(0, 0.5),
@@ -336,24 +336,24 @@ local function makeFeatureCard(opts)
         Name = opts.name or "Card",
         BackgroundColor3 = Theme.Surface,
         BorderSizePixel = 0,
-        Size = UDim2.new(1, 0, 0, 78),
+        Size = UDim2.new(1, 0, 0, 86),
         AutomaticSize = Enum.AutomaticSize.Y,
         LayoutOrder = opts.order or 1,
         Parent = List,
     })
-    corner(card, 14)
+    corner(card, 20)
     stroke(card, Theme.StrokeSoft, 1)
 
     local header = new("Frame", {
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, 78),
+        Size = UDim2.new(1, 0, 0, 86),
         Parent = card,
     })
 
     new("TextLabel", {
         BackgroundTransparency = 1,
-        Position = UDim2.new(0, 16, 0, 14),
-        Size = UDim2.new(1, -96, 0, 20),
+        Position = UDim2.new(0, 18, 0, 14),
+        Size = UDim2.new(1, -150, 0, 20),
         Font = Enum.Font.GothamBold,
         Text = opts.title,
         TextColor3 = Theme.Text,
@@ -364,8 +364,8 @@ local function makeFeatureCard(opts)
 
     new("TextLabel", {
         BackgroundTransparency = 1,
-        Position = UDim2.new(0, 16, 0, 36),
-        Size = UDim2.new(1, -32, 0, 32),
+        Position = UDim2.new(0, 18, 0, 38),
+        Size = UDim2.new(1, -150, 0, 36),
         Font = Enum.Font.Gotham,
         Text = opts.description,
         TextColor3 = Theme.SubText,
@@ -387,7 +387,7 @@ local function makeFeatureCard(opts)
             BorderSizePixel = 0,
             Parent = header,
         })
-        corner(badge, 9)
+        corner(badge, 12)
         new("TextLabel", {
             BackgroundTransparency = 1,
             Size = UDim2.new(1, 0, 1, 0),
@@ -445,7 +445,7 @@ local speedCard, speedHeader, speedSwitch, speedKnob = makeFeatureCard({
 -- Disabled-look slider (visible but not interactive)
 local sliderArea = new("Frame", {
     BackgroundTransparency = 1,
-    Position = UDim2.new(0, 0, 0, 78),
+    Position = UDim2.new(0, 0, 0, 86),
     Size = UDim2.new(1, 0, 0, 44),
     Parent = speedCard,
 })
@@ -457,14 +457,14 @@ local sliderTrack = new("Frame", {
     BorderSizePixel = 0,
     Parent = sliderArea,
 })
-corner(sliderTrack, 3)
+corner(sliderTrack, 6)
 local sliderFill = new("Frame", {
     Size = UDim2.new(0.35, 0, 1, 0),
     BackgroundColor3 = Theme.Disabled,
     BorderSizePixel = 0,
     Parent = sliderTrack,
 })
-corner(sliderFill, 3)
+corner(sliderFill, 6)
 local sliderKnob = new("Frame", {
     AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.new(0.35, 0, 0.5, 0),
@@ -474,7 +474,7 @@ local sliderKnob = new("Frame", {
     ZIndex = 2,
     Parent = sliderTrack,
 })
-corner(sliderKnob, 8)
+corner(sliderKnob, 10)
 new("TextLabel", {
     BackgroundTransparency = 1,
     AnchorPoint = Vector2.new(1, 0.5),
@@ -487,7 +487,7 @@ new("TextLabel", {
     TextXAlignment = Enum.TextXAlignment.Right,
     Parent = sliderArea,
 })
-speedCard.Size = UDim2.new(1, 0, 0, 78 + 44 + 8)
+speedCard.Size = UDim2.new(1, 0, 0, 86 + 44 + 8)
 
 -- Click-on-disabled feedback
 speedSwitch.MouseButton1Click:Connect(function()
@@ -505,14 +505,14 @@ sectionLabel("AUTOMATION", 3)
 local afkCard, afkHeader, afkSwitch, afkKnob = makeFeatureCard({
     name        = "AntiAfkCard",
     title       = "Real Anti AFK",
-    description = "Watches your character. If you haven't moved for 17 minutes, it automatically walks 5 steps in a circle, jumps twice, and returns to your spot.",
+    description = "Smart idle watcher. After you stand still for ~17 minutes it smoothly walks 5 steps in a circle, spins around twice, and glides back to your exact spot.",
     order       = 4,
 })
 
 -- Test button row inside the card
 local afkExtras = new("Frame", {
     BackgroundTransparency = 1,
-    Position = UDim2.new(0, 0, 0, 78),
+    Position = UDim2.new(0, 0, 0, 86),
     Size = UDim2.new(1, 0, 0, 52),
     Parent = afkCard,
 })
@@ -528,7 +528,7 @@ local TestBtn = new("TextButton", {
     TextColor3 = Theme.Text,
     Parent = afkExtras,
 })
-corner(TestBtn, 10)
+corner(TestBtn, 16)
 stroke(TestBtn, Theme.Stroke, 1)
 
 local StatusLabel = new("TextLabel", {
@@ -543,7 +543,7 @@ local StatusLabel = new("TextLabel", {
     Parent = afkExtras,
 })
 
-afkCard.Size = UDim2.new(1, 0, 0, 78 + 52 + 8)
+afkCard.Size = UDim2.new(1, 0, 0, 86 + 52 + 8)
 
 ------------------------------------------------------------
 -- Footer (credits)
@@ -687,13 +687,14 @@ makeDraggable(FloatIcon, FloatIcon)
 ------------------------------------------------------------
 -- Anti-AFK logic
 ------------------------------------------------------------
-local IDLE_THRESHOLD = 17 * 60   -- 17 minutes
-local MOVE_EPSILON   = 3          -- studs considered "still"
+local IDLE_THRESHOLD = 17 * 60   -- 17 minutes of being stopped before auto-routine
+local STOP_GRACE     = 30         -- wait 30s of stillness before the idle clock starts
+local MOVE_EPSILON   = 2          -- studs: any movement > this resets the idle clock
 
 local antiAfkEnabled = false
 local isPerforming   = false      -- true while routine (auto or test) is running
-local suppressMonitor = false     -- when true, position changes during routine are ignored
-local lastMoveTick   = tick()
+local suppressMonitor = false     -- ignore position changes while routine runs
+local stoppedSince   = nil        -- tick() when player first became still (nil = currently moving)
 local lastPos        = nil
 
 local function getCharacter()
@@ -710,7 +711,16 @@ local function setStatus(text, color)
     StatusLabel.TextColor3 = color or Theme.SubText
 end
 
--- The actual routine: 5 steps in a circle, 2 jumps, return to start
+-- Smoothly tween HumanoidRootPart along a CFrame path
+local function smoothMove(hrp, targetCFrame, duration, style)
+    local info = TweenInfo.new(duration, style or Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+    local t = TweenService:Create(hrp, info, { CFrame = targetCFrame })
+    t:Play()
+    t.Completed:Wait()
+end
+
+-- Routine: 5 smooth steps around a small circle, 2 full spins in place,
+-- then a smooth glide back to the exact starting CFrame.
 local function performRoutine(isTest)
     local char, hum, hrp = getCharacter()
     if not hum or not hrp then
@@ -723,60 +733,71 @@ local function performRoutine(isTest)
     setStatus(isTest and "Testing…" or "Auto-moving…", Theme.Accent)
 
     local startCFrame = hrp.CFrame
-    local startPos    = hrp.Position
-    local radius      = 4
+    local startPos    = startCFrame.Position
+    local radius      = 5
+    local stepTime    = 0.55
 
-    -- 5 steps around a circle
+    -- Anchor for buttery, deterministic motion (no physics jitter)
+    local wasAnchored = hrp.Anchored
+    hrp.Anchored = true
+
+    -- 5 smooth steps around a circle, facing direction of travel
     for i = 1, 5 do
         if not getCharacter() then break end
-        local angle = (i / 5) * math.pi * 2
+        local angle  = (i / 5) * math.pi * 2
         local offset = Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
         local target = startPos + offset
-        hum:MoveTo(target)
-        hum.MoveToFinished:Wait()
-        task.wait(0.1)
+        local look   = target + Vector3.new(-math.sin(angle), 0, math.cos(angle))
+        smoothMove(hrp, CFrame.new(target, look), stepTime, Enum.EasingStyle.Sine)
     end
 
-    -- Return to start
-    do
-        local _, h2, r2 = getCharacter()
-        if h2 and r2 then
-            h2:MoveTo(startPos)
-            h2.MoveToFinished:Wait()
-        end
+    -- Two full spins in place (smooth)
+    local spinDuration = 1.6
+    local spinSteps    = 48
+    local baseCFrame   = CFrame.new(startPos) * (startCFrame - startCFrame.Position)
+    for s = 1, spinSteps do
+        if not getCharacter() then break end
+        local frac  = s / spinSteps
+        local angle = frac * math.pi * 4 -- 2 full rotations
+        local rot   = baseCFrame * CFrame.Angles(0, angle, 0)
+        local info  = TweenInfo.new(spinDuration / spinSteps, Enum.EasingStyle.Linear)
+        local tw = TweenService:Create(hrp, info, { CFrame = rot })
+        tw:Play()
+        tw.Completed:Wait()
     end
 
-    -- Two jumps
-    for _ = 1, 2 do
-        local _, h3 = getCharacter()
-        if not h3 then break end
-        h3.Jump = true
-        task.wait(0.55)
-    end
+    -- Smooth glide back to the original CFrame (position + facing)
+    smoothMove(hrp, startCFrame, 0.7, Enum.EasingStyle.Quint)
 
-    -- Restore facing
-    do
-        local _, _, r4 = getCharacter()
-        if r4 then
-            pcall(function() r4.CFrame = startCFrame end)
-        end
-    end
+    -- Restore anchor state
+    local _, _, hrpEnd = getCharacter()
+    if hrpEnd then hrpEnd.Anchored = wasAnchored end
 
     task.wait(0.2)
     suppressMonitor = false
     isPerforming    = false
-    lastMoveTick    = tick()
-    local _, _, hrpEnd = getCharacter()
+    stoppedSince    = tick()
     if hrpEnd then lastPos = hrpEnd.Position end
 
     if antiAfkEnabled then
-        setStatus("Monitoring…", Theme.Success)
+        setStatus("AFK 00:00 / 17:00", Theme.Success)
     else
         setStatus("Idle", Theme.SubText)
     end
 end
 
--- Monitor loop (single, throttled)
+local function formatDuration(sec)
+    sec = math.max(0, math.floor(sec))
+    local m = math.floor(sec / 60)
+    local s = sec % 60
+    return string.format("%02d:%02d", m, s)
+end
+
+-- Monitor loop. Logic:
+--   * If the player moves > MOVE_EPSILON studs, reset everything (no idle counting).
+--   * Once the player is still, wait STOP_GRACE seconds before the idle clock starts.
+--   * After STOP_GRACE, if they stay still for IDLE_THRESHOLD more seconds → run routine.
+--   * Live-updates the status label with an AFK timer (mm:ss / 17:00).
 task.spawn(function()
     while ScreenGui.Parent do
         task.wait(1)
@@ -785,13 +806,28 @@ task.spawn(function()
             if hrp then
                 if lastPos == nil then
                     lastPos = hrp.Position
-                    lastMoveTick = tick()
+                    stoppedSince = tick()
                 else
-                    if (hrp.Position - lastPos).Magnitude > MOVE_EPSILON then
-                        lastPos = hrp.Position
-                        lastMoveTick = tick()
-                    elseif tick() - lastMoveTick >= IDLE_THRESHOLD then
-                        task.spawn(function() performRoutine(false) end)
+                    local moved = (hrp.Position - lastPos).Magnitude
+                    if moved > MOVE_EPSILON then
+                        -- Movement detected → reset everything to zero
+                        lastPos      = hrp.Position
+                        stoppedSince = nil
+                        setStatus("Active — moving", Theme.Accent)
+                    else
+                        if stoppedSince == nil then
+                            stoppedSince = tick()
+                        end
+                        local elapsed = tick() - stoppedSince
+                        if elapsed >= (STOP_GRACE + IDLE_THRESHOLD) then
+                            task.spawn(function() performRoutine(false) end)
+                        elseif elapsed < STOP_GRACE then
+                            local left = math.ceil(STOP_GRACE - elapsed)
+                            setStatus("Settling… " .. left .. "s", Theme.SubText)
+                        else
+                            local afkTime = elapsed - STOP_GRACE
+                            setStatus("AFK " .. formatDuration(afkTime) .. " / 17:00", Theme.Success)
+                        end
                     end
                 end
             end
@@ -805,10 +841,10 @@ local function setAntiAfk(state)
     if state then
         tween(afkSwitch, QUICK, { BackgroundColor3 = Theme.Accent })
         tween(afkKnob, SPRING, { Position = UDim2.fromOffset(22, 2) })
-        lastMoveTick = tick()
+        stoppedSince = nil  -- start fresh: wait for player to stand still first
         local _, _, hrp = getCharacter()
         lastPos = hrp and hrp.Position or nil
-        if not isPerforming then setStatus("Monitoring…", Theme.Success) end
+        if not isPerforming then setStatus("AFK 00:00 / 17:00", Theme.Success) end
     else
         tween(afkSwitch, QUICK, { BackgroundColor3 = Theme.ToggleOff })
         tween(afkKnob, SPRING, { Position = UDim2.fromOffset(2, 2) })
