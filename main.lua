@@ -378,37 +378,52 @@ local MIN_SPEED     = 16
 local speedEnabled  = false
 local currentSpeed  = DEFAULT_SPEED
 
-local trackedHumanoid       = nil
-local humanoidConnection    = nil
+local trackedHumanoid    = nil
+local humanoidConnection = nil
+local diedConnection     = nil
+local applying           = false   -- reentrancy guard
+local lastApply          = 0
 
 local function applySpeedTo(hum)
-    if not hum then return end
-    if speedEnabled then
-        hum.WalkSpeed = currentSpeed
-    else
-        hum.WalkSpeed = DEFAULT_SPEED
-    end
+    if not hum or applying then return end
+    local target = speedEnabled and currentSpeed or DEFAULT_SPEED
+    if hum.WalkSpeed == target then return end
+    applying = true
+    pcall(function()
+        hum.WalkSpeed = target
+    end)
+    applying = false
 end
 
 local function bindHumanoid(hum)
     if not hum then return end
-    if humanoidConnection then
-        humanoidConnection:Disconnect()
-        humanoidConnection = nil
-    end
+    if humanoidConnection then humanoidConnection:Disconnect() end
+    if diedConnection then diedConnection:Disconnect() end
     trackedHumanoid = hum
-    -- Re-apply whenever the game (or anything else) changes WalkSpeed
+
+    -- Re-apply when something else changes WalkSpeed (throttled, guarded)
     humanoidConnection = hum:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
-        if speedEnabled and hum.WalkSpeed ~= currentSpeed then
-            hum.WalkSpeed = currentSpeed
+        if not speedEnabled or applying then return end
+        local now = tick()
+        if now - lastApply < 0.1 then return end
+        lastApply = now
+        if hum.WalkSpeed ~= currentSpeed then
+            applySpeedTo(hum)
         end
     end)
+
+    diedConnection = hum.Died:Connect(function()
+        if humanoidConnection then humanoidConnection:Disconnect() humanoidConnection = nil end
+    end)
+
     applySpeedTo(hum)
 end
 
 local function onCharacter(char)
-    local hum = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid", 5)
-    bindHumanoid(hum)
+    task.spawn(function()
+        local hum = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid", 5)
+        if hum then bindHumanoid(hum) end
+    end)
 end
 
 if LocalPlayer.Character then
@@ -419,6 +434,7 @@ LocalPlayer.CharacterAdded:Connect(onCharacter)
 local function applySpeed()
     applySpeedTo(trackedHumanoid)
 end
+
 
 
 local function setSliderValue(value, animated)
@@ -625,12 +641,5 @@ Window.BackgroundTransparency = 1
 tween(Window, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
     { Size = UDim2.fromOffset(420, 320), BackgroundTransparency = 0 })
 
--- Keep speed applied on respawn
-RunService.Heartbeat:Connect(function()
-    if speedEnabled then
-        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum and hum.WalkSpeed ~= currentSpeed then
-            hum.WalkSpeed = currentSpeed
-        end
-    end
-end)
+
+
